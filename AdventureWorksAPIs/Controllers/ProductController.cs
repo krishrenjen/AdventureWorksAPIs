@@ -6,7 +6,6 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using System.Data;
-using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 
 
 [ApiController]
@@ -140,15 +139,14 @@ public class ProductsController : ControllerBase
         updated.SizeUnitMeasureCode = string.IsNullOrWhiteSpace(updated.SizeUnitMeasureCode) ? "CM" : updated.SizeUnitMeasureCode;
         updated.WeightUnitMeasureCode = string.IsNullOrWhiteSpace(updated.WeightUnitMeasureCode) ? "LB" : updated.WeightUnitMeasureCode;
 
-        if (id == -1)
+        var productIdParam = new SqlParameter("@ProductId", SqlDbType.Int)
         {
-            var productIdParam = new SqlParameter("@ProductId", SqlDbType.Int)
-            {
-                Direction = ParameterDirection.Output
-            };
+            Direction = ParameterDirection.InputOutput,
+            Value = id
+        };
 
-            await _context.Database.ExecuteSqlInterpolatedAsync($@"
-                EXEC CreateProduct
+        await _context.Database.ExecuteSqlInterpolatedAsync($@"
+                EXEC UpsertProductFields
                 @Name                  = {updated.Name},
                 @ListPrice             = {updated.ListPrice},
                 @StandardCost          = {updated.StandardCost},
@@ -156,29 +154,12 @@ public class ProductsController : ControllerBase
                 @SizeUnitMeasureCode   = {updated.SizeUnitMeasureCode ?? "CM"},
                 @Weight                = {updated.Weight},
                 @WeightUnitMeasureCode = {(updated.Weight == null
-                                            ? null
-                                            : updated.WeightUnitMeasureCode ?? "LB")},
+                                        ? null
+                                        : updated.WeightUnitMeasureCode ?? "LB")},
                 @ProductId             = {productIdParam} OUTPUT"
-            );
+        );
 
-            id = (int)productIdParam.Value!;
-        }
-        else
-        {
-            await _context.Database.ExecuteSqlInterpolatedAsync($@"
-            EXEC UpdateProductFields
-                 @ProductId             = {id},
-                 @Name                  = {updated.Name},
-                 @ListPrice             = {updated.ListPrice},
-                 @StandardCost          = {updated.StandardCost},
-                 @Size                  = {updated.Size ?? ""},
-                 @SizeUnitMeasureCode   = {updated.SizeUnitMeasureCode ?? "CM"},
-                 @Weight                = {updated.Weight},
-                 @WeightUnitMeasureCode = {(updated.Weight == null
-                                            ? null                    
-                                            : updated.WeightUnitMeasureCode ?? "LB")}"
-            );
-        }
+        id = (int)productIdParam.Value!;
 
         var modelIdParam = new SqlParameter
         {

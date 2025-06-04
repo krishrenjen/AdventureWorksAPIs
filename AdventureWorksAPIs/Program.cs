@@ -17,7 +17,7 @@ builder.Services.AddCors(options =>
     });
 });
 
-// Add services to the container.
+// Add JWT auth service
 builder.Services.AddAuthentication(x =>
 {
     x.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -44,8 +44,9 @@ builder.Services.AddAuthorization();
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen(); // Use this instead of AddOpenApi()
+builder.Services.AddSwaggerGen();
 
+// t up Entity Framework with SQL Server
 builder.Services.AddDbContext<AdventureWorksContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 

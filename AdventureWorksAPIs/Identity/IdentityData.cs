@@ -4,7 +4,5 @@
     {
         public const string EmployeeUserClaimName = "employee";
 
-        public const string EmployeeUserPolicyName = "Employee";
-
     }
 }

@@ -22,29 +22,43 @@ namespace AdventureWorksAPIs.Controllers
         }
 
         [HttpPost("token")]
-        public async Task<IActionResult> GenerateToken([FromBody]TokenGenerationRequest request)
+        public IActionResult GenerateToken([FromBody]TokenGenerationRequest request)
         {
-
-            var emailEntry = await _context.EmailAddresses
-                .Where(e => e.EmailAddress1 == request.Email)
-                .FirstOrDefaultAsync();
+            var emailEntry = _context.EmailAddresses
+                .FromSqlRaw("EXEC GetEmailEntryByEmail @Email = {0}", request.Email)
+                .AsEnumerable()
+                .FirstOrDefault();
 
             if (emailEntry == null)
             {
                 return Unauthorized("Email not found.");
             }
 
-            var personEntry = await _context.People
-                .Include(p => p.Password)
-                .Where(p => p.BusinessEntityId == emailEntry.BusinessEntityId)
-                .FirstOrDefaultAsync();
+            var personEntry =  _context.PersonWithPasswordDTOs
+                .FromSqlRaw("EXEC GetPersonWithPasswordByBusinessEntityId @BusinessEntityId = {0}", emailEntry.BusinessEntityId)
+                .AsEnumerable()
+                .FirstOrDefault();
 
-            if (personEntry == null || personEntry.Password == null)
+            //var emailEntry = await _context.EmailAddresses
+            //    .Where(e => e.EmailAddress1 == request.Email)
+            //    .FirstOrDefaultAsync();
+
+            //if (emailEntry == null)
+            //{
+            //    return Unauthorized("Email not found.");
+            //}
+
+            //var personEntry = await _context.People
+            //    .Include(p => p.Password)
+            //    .Where(p => p.BusinessEntityId == emailEntry.BusinessEntityId)
+            //    .FirstOrDefaultAsync();
+
+            if (personEntry == null || personEntry.PasswordHash == null)
             {
                 return Unauthorized("User not found or password not set.");
             }
 
-            if (!VerifyPassword(request.Password, personEntry.Password.PasswordHash, personEntry.Password.PasswordSalt, HashOverride))
+            if (!VerifyPassword(request.Password, personEntry.PasswordHash, personEntry.PasswordSalt, HashOverride))
             {
                 return Unauthorized("Invalid password.");
             }

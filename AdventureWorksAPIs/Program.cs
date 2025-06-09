@@ -17,6 +17,8 @@ builder.Services.AddCors(options =>
     });
 });
 
+
+
 // Add JWT auth service
 builder.Services.AddAuthentication(x =>
 {
@@ -58,6 +60,20 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();            // Show Swagger UI only in dev
     app.UseSwaggerUI();
 }
+
+app.Use(async (context, next) =>
+{
+    if (context.Request.Method == HttpMethods.Head)
+    {
+        context.Request.Method = HttpMethods.Get;
+        context.Response.OnStarting(() =>
+        {
+            return Task.CompletedTask;
+        });
+    }
+
+    await next();
+});
 
 app.UseHttpsRedirection();
 

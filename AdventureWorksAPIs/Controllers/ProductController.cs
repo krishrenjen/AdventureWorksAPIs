@@ -17,16 +17,17 @@ public class ProductsController : ControllerBase
         _context = context;
     }
 
-    [Authorize]
+    [AllowAnonymous]
     [HttpGet]
     public async Task<IActionResult> GetProducts(
-        [FromQuery] string? queryNameId,
-        [FromQuery] decimal? listPriceMax,    
-        [FromQuery] decimal? listPriceMin = 0,    
-        [FromQuery] int? pageNumber = 1, 
-        [FromQuery] int? pageSize = 25)  
+    [FromQuery] string? queryNameId,
+    [FromQuery] decimal? listPriceMax,
+    [FromQuery] decimal? listPriceMin = 0,
+    [FromQuery] int? pageNumber = 1,
+    [FromQuery] int? pageSize = 25,
+    [FromQuery] bool sortNewest = false,
+    [FromQuery] bool onlyWithPhotos = false)
     {
-        
         if (pageNumber < 1) pageNumber = 1;
         if (pageSize < 1 || pageSize > 30) pageSize = 25;
 
@@ -38,22 +39,26 @@ public class ProductsController : ControllerBase
         };
 
         var products = await _context.ProductDTOs
-        .FromSqlRaw(
-            "EXEC GetProductsList " +
-                "@QueryNameID  = {0}, " +
-                "@ListPriceMax = {1}, " +
-                "@ListPriceMin = {2}, " +
-                "@PageNumber = {3}, " +
-                "@PageSize = {4}, " +
-                "@TotalRows = {5} OUTPUT",
-            queryNameId ?? "",
-            listPriceMax ?? -1,
-            listPriceMin ?? 0,
-            pageNumber ?? 1,
-            pageSize ?? 25,
-            rowParam
-        )
-        .ToListAsync();
+            .FromSqlRaw(
+                "EXEC GetProductsList " +
+                    "@QueryNameID = {0}, " +
+                    "@ListPriceMax = {1}, " +
+                    "@ListPriceMin = {2}, " +
+                    "@PageNumber = {3}, " +
+                    "@PageSize = {4}, " +
+                    "@SortNewest = {5}, " +
+                    "@OnlyWithPhotos = {6}, " +
+                    "@TotalRows = {7} OUTPUT",
+                queryNameId ?? "",
+                listPriceMax ?? -1,
+                listPriceMin ?? 0,
+                pageNumber ?? 1,
+                pageSize ?? 25,
+                sortNewest,
+                onlyWithPhotos,
+                rowParam
+            )
+            .ToListAsync();
 
         int totalRows = (int)(rowParam.Value ?? 0);
         int totalPages = (int)Math.Ceiling(totalRows / (double)pageSize);
@@ -68,7 +73,37 @@ public class ProductsController : ControllerBase
         });
     }
 
-    [Authorize]
+
+    [AllowAnonymous]
+    [HttpGet("discovery")]
+    public async Task<IActionResult> GetDiscovery()
+    {
+        var rows = await _context.DiscoveryRowDTOs
+        .FromSqlRaw("EXEC GetDiscoveryEvents")
+        .ToListAsync();
+
+        var grouped = rows
+            .GroupBy(r => r.CategoryName)
+            .ToDictionary(
+                g => g.Key,
+                g => g
+                    .GroupBy(x => x.SubcategoryName)
+                    .Select(sg => new SubcategoryGroup
+                    {
+                        Subcategory = sg.Key,
+                        Products = sg.Select(p => new ProductItem
+                        {
+                            ProductID = p.ProductID,
+                            ProductName = p.ProductName,
+                            ProductPrice = p.ProductPrice
+                        }).ToList()
+                    }).ToList()
+            );
+
+        return Ok(grouped);
+    }
+
+    [AllowAnonymous]
     [HttpGet("{id}")]
     public async Task<IActionResult> GetProductById(int id)
     {
@@ -84,7 +119,41 @@ public class ProductsController : ControllerBase
         return Ok(product);
     }
 
-    [Authorize]
+    [AllowAnonymous]
+    [HttpGet("thumbnail/{productId}"), HttpHead("thumbnail/{productId}")]
+    public async Task<IActionResult> GetProductThumbnail(int productId)
+    {
+        var result = await _context.ProductPhotoDTOs
+            .FromSqlRaw("EXEC GetProductPhotoByProductId @ProductID = {0}", productId)
+            .AsNoTracking()
+            .ToListAsync();
+
+        var photo = result.FirstOrDefault();
+        if (photo == null || photo.ThumbNailPhoto == null || photo.ProductPhotoID == 1)
+            return NotFound();
+
+        return File(photo.ThumbNailPhoto, "image/jpeg");
+    }
+
+    [AllowAnonymous]
+    [HttpGet("photo/{productId}"), HttpHead("photo/{productId}")]
+    public async Task<IActionResult> GetProductPhoto(int productId)
+    {
+        var result = await _context.ProductPhotoDTOs
+            .FromSqlRaw("EXEC GetProductPhotoByProductId @ProductID = {0}", productId)
+            .AsNoTracking()
+            .ToListAsync();
+
+        var photo = result.FirstOrDefault();
+        if (photo == null || photo.LargePhoto == null || photo.ProductPhotoID == 1)
+            return NotFound();
+
+        return File(photo.LargePhoto, "image/jpeg");
+    }
+
+
+
+    [AllowAnonymous]
     [HttpGet("{productId}/similar")]
     public async Task<IActionResult> GetSimilarProducts(int productId, [FromQuery] int amount = 5)
     {

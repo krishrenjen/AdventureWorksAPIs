@@ -81,6 +81,9 @@ public partial class AdventureWorksContext : DbContext
     public virtual DbSet<ProductInfoDTO> ProductInfoDTOs { get; set; }
     public virtual DbSet<ProductNameDTO> ProductNameDTOs { get; set; }
     public virtual DbSet<PersonWithPasswordDTO> PersonWithPasswordDTOs { get; set; }
+    public virtual DbSet<DiscoveryRow> DiscoveryRowDTOs { get; set; }
+    public virtual DbSet<UserInfoDTO> UserInfoDTOs { get; set; }
+    public virtual DbSet<ProductPhotoDTO> ProductPhotoDTOs { get; set; }
 
     public virtual DbSet<ProductCategory> ProductCategories { get; set; }
 
@@ -208,7 +211,9 @@ public partial class AdventureWorksContext : DbContext
         modelBuilder.Entity<ProductInfoDTO>().HasNoKey().ToView(null);
         modelBuilder.Entity<ProductNameDTO>().HasNoKey().ToView(null);
         modelBuilder.Entity<PersonWithPasswordDTO>().HasNoKey().ToView(null);
-
+        modelBuilder.Entity<DiscoveryRow>().HasNoKey().ToView(null);
+        modelBuilder.Entity<UserInfoDTO>().HasNoKey().ToView(null);
+        modelBuilder.Entity<ProductPhotoDTO>().HasNoKey().ToView(null);
 
         modelBuilder.Entity<Address>(entity =>
         {
